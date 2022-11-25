@@ -2,6 +2,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import sklearn.linear_model
+from sklearn.model_selection import cross_val_score
 
 mnist_data = pd.read_csv('mnist.csv').values
 
@@ -24,13 +26,18 @@ ink_mean = [np.mean(ink[labels == i]) for i in range(10)]
 # compute standard deviation for each digit class
 ink_std = [np.std(ink[labels == i]) for i in range(10)]
 
-#numbers = np.arange(0,10,1,int)
-arr = np.array([ink_mean, ink_std])
-print(pd.DataFrame(arr))
+#print(np.size(ink), np.size(ink_mean), np.size(ink_std))
 
-# df = pd.DataFrame(mnist_data)
-# ink_df = df.transpose().sum()
-# print(ink_df)
+scaled_ink = (ink - np.mean(ink))/np.std(ink)
+print(scaled_ink)
+
+# [TODO]perform cross-validation and replace value of c in the logistic regression
+
+logreg = sklearn.linear_model.LogisticRegression(penalty='l1', c=1,solver='saga')
+# saga is the only solver that supports l1 penalty and multi-class problems
+
+#arr = np.array([ink_mean, ink_std])
+#print(pd.DataFrame(arr))
 
 
 #print(df.loc[:, (df.sum() > 0).all()])
