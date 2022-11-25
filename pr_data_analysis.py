@@ -1,32 +1,27 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[32]:
+# In[4]:
 
 
 import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
-# In[33]:
+# In[6]:
 
 
-mnist_data = pd.read_csv('data/mnist.csv').values
+mnist_data = pd.read_csv('mnist.csv').values
 mnist_data
 
 
-# In[ ]:
+# In[7]:
 
 
-
-
-
-# In[36]:
-
-
-labels = mnist_data[:,0]
+labels = mnist_data[:,0] # 0 to 9
 digits = mnist_data[:, 1:] # 42000 digits
 img_size = 28
 
@@ -39,10 +34,12 @@ for i in range(1, columns*rows +1):
 plt.show()
 
 
-# In[40]:
+# In[15]:
 
 
-print(np.unique(labels, return_counts=True))
+unique, counts = np.unique(labels, return_counts=True)
+ax = sns.barplot(x=unique,y=counts)
+plt.show()
 
 
 # In[ ]:
