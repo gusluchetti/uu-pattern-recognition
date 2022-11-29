@@ -19,11 +19,11 @@ custom_params = {'figure.figsize':(12,7)}
 sns.set_theme(style="whitegrid", rc=custom_params)
 
 
-# In[3]:
+# In[40]:
 
 
 mnist_data = pd.read_csv('mnist.csv').values
-mnist_data
+mnist_data.describe
 
 
 # # Data Exploration
@@ -57,13 +57,19 @@ plt.xlabel("Numbers")
 plt.show()
 
 
-# ## Pipeline Setup
-# (Scaled to zero mean/unit standard deviation) Multinomial Logit Model -> Ink Feature
+# ## Model Descriptions
+# ### Compare ink vs ink + special feature
+# - (Zero mean and SD=1) Multinomial Logit -> Ink Feature
+# - (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
 # 
+# ### Compare both models
+# - (Regularized?) MN Logit (w/ LASSO penalty) -> 784 features (all pixel values)
+# - Support Vector Machines (SVM)
 
 # In[33]:
 
 
+# setting up pipeline to facilitate data
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import scale
 
@@ -71,7 +77,7 @@ from sklearn.preprocessing import scale
 
 # # INK Feature
 
-# In[31]:
+# In[35]:
 
 
 # create ink feature
@@ -80,10 +86,38 @@ ink = np.array([sum(row) for row in digits])
 ink_mean = [np.mean(ink[labels == i]) for i in range(10)]
 # compute standard deviation for each digit class
 ink_std = [np.std(ink[labels == i]) for i in range(10)]
+print(np.size(ink), np.size(ink_mean), np.size(ink_std))
+
+
+# In[34]:
+
+
+scaled_ink = (ink - np.mean(ink))/np.std(ink)
+print(scaled_ink)
 
 
 # In[ ]:
 
 
+logreg = sklearn.linear_model.LogisticRegression(penalty='l1', c=1,solver='saga')
+# saga is the only solver that supports l1 penalty and multi-class problems
+#arr = np.array([ink_mean, ink_std])
+#print(pd.DataFrame(arr))
+#print(df.loc[:, (df.sum() > 0).all()])
 
+
+# In[ ]:
+
+
+# special feature:
+# go through each row of pixels, count how many times it reaches a non-zero pixel 
+# ... with a zero ink pixel separator --> if highest value of this is 2, 
+# feature is # of rows value 2 / # of rows value 1
+# we do not care about rows with value 0 --> covered by ink feature
+
+# possible issue: does not distinguish between 6 and 9 --> 
+# but ink feature also does not distinguish between those in theory
+
+# for part 2, when we need to consider each pixel as an individual feature
+# find a way to remove all pixels that always have constant value
 
