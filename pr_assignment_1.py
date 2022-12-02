@@ -79,7 +79,7 @@ def h_pass(samples = len(digits), example = None):
     horizontal_passthrough = np.zeros(samples*max_count)
     horizontal_passthrough = np.reshape(horizontal_passthrough, (samples,max_count))    # making a 2D array of 'samples' rows and 'max_count' columns
 
-    print("starting hpass")
+    print("creating hpass matrix")
 
     for i in range(samples):
         h_passthrough_sample = np.zeros(max_count)
@@ -184,6 +184,43 @@ def h_pass_ratio(numbers = (2,1), samples = len(digits), example = None):
 
     return horizontal_passthrough
 
+def v_pass(samples = len(digits), example = None):
+    
+    #minsequence = 1     # [UNUSED] how many pixels have to be colored or empty in a row for it to be considered a change of color
+    max_count = 6       # 6 is the smallest possible as determined by trial and error
+
+    vertical_passthrough = np.zeros(samples*max_count)
+    vertical_passthrough = np.reshape(vertical_passthrough, (samples,max_count))    # making a 2D array of 'samples' rows and 'max_count' columns
+
+    print("creating vpass matrix")
+
+    for i in range(samples):
+        v_passthrough_sample = np.zeros(max_count)
+        for col in range(28):  
+            count = 0
+            painted_section = False
+            for pixel_index in range(28):
+                pixel = digits[i][28*pixel_index + col]
+                if painted_section == False:
+                    if pixel != 0:
+                        painted_section = True
+                        count += 1
+                    #    print("started counting on pixel", 28*pixel_index + col, "with value", pixel)
+                else:
+                    if pixel == 0:
+                        painted_section = False
+                        # print("went back on pixel", 28*pixel_index + col, "with value", pixel)
+            if count >= 0:
+                v_passthrough_sample[count] += 1
+                if example != None:
+                    if i == example:
+                        print("sample",i,"col", col, "at count",count)
+        vertical_passthrough[i] = v_passthrough_sample
+    
+    if example != None:
+        print (vertical_passthrough[example])
+
+    return vertical_passthrough
 
 def make_img(index):
     img_size = 28
@@ -192,14 +229,6 @@ def make_img(index):
 
 
 
-
-# provide a specific example
-#example_img = 7
-#h_pass(samples = example_img+1, example = example_img)
-#make_img(example_img)
-
-hpass_matrix = h_pass(samples = 42000)
-print(hpass_matrix)
 
 #hpass_ratios = h_pass_ratio(samples = 10)
 
@@ -236,11 +265,102 @@ def logreg_hpass_only():
     print("hpass classification report")
     print(sklearn.metrics.classification_report(labels,predictions_hpass))
 
+def logreg_vpass_only():
+    
+    logreg_vpass = sklearn.linear_model.LogisticRegression(penalty='l1', solver='saga').fit(vpass_matrix,labels)
+
+    predictions_vpass = logreg_vpass.predict(vpass_matrix)
+
+    print("vpass confusion matrix")
+    print(sklearn.metrics.confusion_matrix(labels,predictions_vpass))
+    print("vpass multilabel confusion matrix")
+    print(sklearn.metrics.multilabel_confusion_matrix(labels,predictions_vpass))
+    print("vpass classification report")
+    print(sklearn.metrics.classification_report(labels,predictions_vpass))
+
+def logreg_ink_hpass_both():
+
+    combined_feature_set = np.column_stack((transposed_scaled_ink, hpass_matrix))
+   # print(combined_feature_set)
+    logreg_both = sklearn.linear_model.LogisticRegression(penalty='l1', solver = 'saga').fit(combined_feature_set, labels)
+
+    predictions_both = logreg_both.predict(combined_feature_set)
+
+    print("hpass + ink confusion matrix")
+    print(sklearn.metrics.confusion_matrix(labels,predictions_both))
+    print("hpass + ink multilabel confusion matrix")
+    print(sklearn.metrics.multilabel_confusion_matrix(labels,predictions_both))
+    print("hpass + ink classification report")
+    print(sklearn.metrics.classification_report(labels,predictions_both))
+
+
+def logreg_ink_vpass_both():
+
+    combined_feature_set = np.column_stack((transposed_scaled_ink, vpass_matrix))
+   # print(combined_feature_set)
+    logreg_both = sklearn.linear_model.LogisticRegression(penalty='l1', solver = 'saga').fit(combined_feature_set, labels)
+
+    predictions_both = logreg_both.predict(combined_feature_set)
+
+    print("vpass + ink confusion matrix")
+    print(sklearn.metrics.confusion_matrix(labels,predictions_both))
+    print("vpass + ink multilabel confusion matrix")
+    print(sklearn.metrics.multilabel_confusion_matrix(labels,predictions_both))
+    print("vpass + ink classification report")
+    print(sklearn.metrics.classification_report(labels,predictions_both))
+
+def logreg_hpass_vpass_both():
+
+    combined_feature_set = np.column_stack((hpass_matrix, vpass_matrix))
+   # print(combined_feature_set)
+    logreg_both = sklearn.linear_model.LogisticRegression(penalty='l1', solver = 'saga').fit(combined_feature_set, labels)
+
+    predictions_both = logreg_both.predict(combined_feature_set)
+
+    print("vpass + hpass confusion matrix")
+    print(sklearn.metrics.confusion_matrix(labels,predictions_both))
+    print("vpass + hpass multilabel confusion matrix")
+    print(sklearn.metrics.multilabel_confusion_matrix(labels,predictions_both))
+    print("vpass + hpass classification report")
+    print(sklearn.metrics.classification_report(labels,predictions_both))
+
+def logreg_ink_vpass_hpass():
+
+    combined_feature_set = np.column_stack((transposed_scaled_ink, vpass_matrix, hpass_matrix))
+   # print(combined_feature_set)
+    logreg_both = sklearn.linear_model.LogisticRegression(penalty='l1', solver = 'saga').fit(combined_feature_set, labels)
+
+    predictions_both = logreg_both.predict(combined_feature_set)
+
+    print("vpass + hpass + ink confusion matrix")
+    print(sklearn.metrics.confusion_matrix(labels,predictions_both))
+    print("vpass + hpass + ink multilabel confusion matrix")
+    print(sklearn.metrics.multilabel_confusion_matrix(labels,predictions_both))
+    print("vpass + hpass + ink classification report")
+    print(sklearn.metrics.classification_report(labels,predictions_both))
+
+""" 
+# provide a specific example
+example_img = 7
+#h_pass(samples = example_img+1, example = example_img)
+v_pass(samples = example_img+1, example = example_img)
+make_img(example_img)
+""" 
+
+# creating full matrices
 
 tic=timeit.default_timer()
 
+hpass_matrix = h_pass(samples = 42000)
+
+vpass_matrix = v_pass(samples = 42000)
+print(vpass_matrix[:10])
+
+toc=timeit.default_timer()
+print("matrices created in time:", toc-tic)
 
 print("INK ONLY RESULTS:")
+tic=timeit.default_timer()
 logreg_ink_only()
 
 toc=timeit.default_timer()
@@ -254,7 +374,50 @@ logreg_hpass_only()
 
 toc=timeit.default_timer()
 
-print("hpass only completed in time", toc-tic)
+print("hpass only completed in time", toc-tic) 
+
+tic = timeit.default_timer()
+print("COMBINED INK AND HPASS RESULTS")
+logreg_ink_hpass_both()
+
+toc = timeit.default_timer()
+
+print("ink and hpass combined completed in time", toc-tic)
+
+
+tic=timeit.default_timer()
+
+print("VPASS ONLY RESULTS:")
+logreg_vpass_only()
+
+toc=timeit.default_timer()
+
+print("vpass only completed in time", toc-tic) 
+
+tic = timeit.default_timer()
+print("COMBINED INK AND VPASS RESULTS")
+logreg_ink_vpass_both()
+
+toc = timeit.default_timer()
+
+print("ink and vpass combined completed in time", toc-tic)
+
+
+print("COMBINED HPASS and VPASS RESULTS")
+logreg_hpass_vpass_both()
+
+toc = timeit.default_timer()
+
+print("hpass and vpass combined completed in time", toc-tic)
+
+
+
+print("COMBINED INK, HPASS, AND VPASS RESULTS")
+logreg_ink_vpass_hpass()
+
+toc = timeit.default_timer()
+
+print("ink, hpass, vpass combined completed in time", toc-tic)
 
 # make a count of how many rows per number: how many rows with 1, with 2, with 3, with 4, with 5 --> see which is the highest number
 
