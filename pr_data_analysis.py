@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[11]:
+
+
+import sys
+get_ipython().system('{sys.executable} -m pip install opencv-python')
+
+
+# In[12]:
 
 
 import random
@@ -9,9 +16,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import cv2
 
 
-# In[2]:
+# In[13]:
 
 
 # configuring figure/plot params
@@ -28,6 +36,7 @@ df_describe.describe()
 
 
 # # Data Exploration
+# Exploring data and plotting cool stuff
 
 # In[4]:
 
@@ -59,11 +68,77 @@ plt.xlabel("Numbers")
 plt.show()
 
 
-# # Part 1. INK Feature Models
-# - (Zero mean and SD=1) Multinomial Logit -> Ink Feature
-# - (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
-
 # In[6]:
+
+
+import cv2
+
+digitsResized = np.zeros((len(digits), 14*14))
+
+for i, d in enumerate(digits):
+    _d = np.reshape(d, (28, 28)).astype('float32')
+    resized_d = cv2.resize(_d, (14, 14))
+    d_ = np.reshape(resized_d, (1, 14*14))
+    digitsResized[i] = d_
+
+# print('Digits resized', np.shape(digitsResized))
+
+
+# In[ ]:
+
+
+# Visually sampling the data
+
+img_size = 14
+columns = 5
+rows = 2
+fig = plt.figure(figsize=(26,13))
+
+for i in range(1, columns*rows +1):
+    fig.add_subplot(rows, columns, i)
+    random_index = random.randrange(0, len(digitsResized))
+    plt.imshow(digitsResized[random_index].reshape(img_size, img_size))
+    plt.xlabel(str(labels[random_index]))
+
+plt.show()
+
+
+# #### Drop useless features
+# 
+# Useless features are those with constant values across all data points, hence cannot be used to distinguish between data.
+
+# In[ ]:
+
+
+def filterConstantFeature(matrix, idx):
+    return False if np.var(matrix[:, idx]) == 0.0 else True
+
+
+cols_digits = list(range(0, len(digits[0])))
+usefulCols_digits = [filterConstantFeature(digits, i) for i in cols_digits]
+digitsFiltered = digits[:, usefulCols_digits]
+
+cols_digitsResized = list(range(0, len(digitsResized[0])))
+usefulCols_digitsResized = [filterConstantFeature(digitsResized, i) for i in cols_digitsResized]
+digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]     # DATA: digits -> resized to 14x14 -> dropped constant features.
+
+# print(np.shape(digitsResized))
+# print(np.shape(digitsResizedFiltered))
+
+
+# In[ ]:
+
+
+# given some restriction on later parts of the assignment, I've opted to train ALL
+# models with said restrictions; that being training on 5000 samples, and testing on
+# 37000 samples. let's see how that goes
+
+
+# # Part 1. INK Feature Models
+# - Model 1. (Zero mean and SD=1) Multinomial Logit -> Ink Feature
+# - Model 2. (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
+
+# In[ ]:
 
 
 # creating ink feature
@@ -74,7 +149,7 @@ print(f"{ink}\n{ink_mean}\n{ink_std}\n")
 print(f"{np.size(ink)}, {np.size(ink_mean)}, {np.size(ink_std)}")
 
 
-# In[7]:
+# In[ ]:
 
 
 # i didn't see much difference between scaled and non-scaled ink
@@ -82,7 +157,7 @@ scaled_ink = (ink - np.mean(ink)) / np.std(ink)
 print(scaled_ink)
 
 
-# In[8]:
+# In[ ]:
 
 
 # our new feature - whitespace between numbers
@@ -95,7 +170,7 @@ def get_whitespace_feature(digits):
     return ws
 
 
-# In[9]:
+# In[ ]:
 
 
 ws = get_whitespace_feature(digits)
@@ -105,7 +180,7 @@ print(f"{ws}\n{ws_mean}\n{ws_std}\n")
 print(f"{np.size(ws)}, {np.size(ws_mean)}, {np.size(ws_std)}")
 
 
-# In[10]:
+# In[ ]:
 
 
 # setting up pipeline to facilitate modelling
@@ -133,7 +208,7 @@ scaled_logit.score(X_test, y_test)
 y_pred = scaled_logit.predict(X_test)
 
 
-# In[16]:
+# In[ ]:
 
 
 from sklearn.metrics import classification_report
@@ -149,17 +224,21 @@ def show_results(model_desc, y_test, y_pred):
     plt.show()
 
 
-# In[17]:
+# In[ ]:
 
 
 show_results("MN LOGIT - INK FEATURE", y_test, y_pred)
 
 
-# # Part 2. All Pixel Value Models
-# - (Regularized?) MN Logit (w/ LASSO penalty) -> 784(28*28 pixels) features (all pixel values)
-# - Support Vector Machines (SVM)
+# # Part 2. All Pixel Values Models
+# _**NOTE: Both with 784(14*14 pixels) features (all pixel values)**_
+# 
+# - Model 3. (Regularized?) MN Logit (w/ LASSO penalty) 
+# - Model 4. Support Vector Machines (SVM)
 
-# In[13]:
+# ### MN Logit (w/ LASSO penalty)
+
+# In[ ]:
 
 
 # find a way to remove all pixels that always have constant value
@@ -169,4 +248,34 @@ logreg = sklearn.linear_model.LogisticRegression(penalty='l1', c=1,solver='saga'
 #arr = np.array([ink_mean, ink_std])
 #print(pd.DataFrame(arr))
 #print(df.loc[:, (df.sum() > 0).all()])
+
+
+# ### SVM + Grid Search -> All Pixel Values
+
+# In[ ]:
+
+
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+from tqdm import tqdm
+
+
+# === Note on kernels and params ===
+
+# rbf: gamma
+# linear: x, x'
+# sigmoid: coef0
+# poly: degree, coef0
+#   but coef0 can be safely left unchanged "in most cases" according to 
+# https://stackoverflow.com/questions/21390570/scikit-learn-svc-coef0-parameter-range
+
+paramGrid = {
+    'kernel': ['rbf', 'poly', 'linear', 'sigmoid'],
+    'C': [0.1, 0.5, 0.9, 1.5, 2, 2.5],
+    'degree': [0.5, 1, 2, 5],
+    'gamma': ['auto', 'scale'],
+}
+
+grid = GridSearchCV(SVC(), paramGrid, refit=True, verbose=3)
+grid.fit(X_train2_std, y_train2)
 
