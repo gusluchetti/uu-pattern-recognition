@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[11]:
+# In[1]:
 
 
 import sys
 get_ipython().system('{sys.executable} -m pip install opencv-python')
 
 
-# In[12]:
+# In[2]:
 
 
 import random
@@ -19,7 +19,7 @@ import seaborn as sns
 import cv2
 
 
-# In[13]:
+# In[3]:
 
 
 # configuring figure/plot params
@@ -27,27 +27,51 @@ custom_params = {'figure.figsize':(17,9)}
 sns.set_theme(style="whitegrid", rc=custom_params)
 
 
-# In[3]:
+# In[26]:
 
 
+# loading dataset (it's a bit slow)
 mnist_data = pd.read_csv('mnist.csv').values
-df_describe = pd.DataFrame(mnist_data)
-df_describe.describe()
 
 
-# # Data Exploration
+# In[31]:
+
+
+labels = mnist_data[:, 0]  # 0 to 9
+digits = mnist_data[:, 1:] # 42000 digits
+mnist_df = pd.DataFrame(mnist_data)
+mnist_df.head()
+# first column is label, all (784) other columns are pixel values (0-255)
+
+
+# In[59]:
+
+
+# randomly print one number from each class
+def print_one_from_each(digits, img_size):
+    fig = plt.figure(figsize=(26,13))
+    cols, rows = 5, 2
+    for i in range(1, (cols*rows)+1):
+        fig.add_subplot(rows, cols, i)
+        number = f"{i-1}"
+        index = np.argmax(mnist_df[:,0] == number)
+        print(number, index)
+        plt.imshow(digits[index].reshape(img_size, img_size))
+        plt.xlabel(str(labels[index]))
+    plt.show()
+
+
+# # Data Exploration / Pre-Processing
 # Exploring data and plotting cool stuff
 
-# In[4]:
+# In[46]:
 
 
-labels = mnist_data[:,0] # 0 to 9
-digits = mnist_data[:, 1:] # 42000 digits
 img_size = 28
-
 fig = plt.figure(figsize=(26,13))
 columns = 5
 rows = 2
+
 for i in range(1, columns*rows +1):
     fig.add_subplot(rows, columns, i)
     random_index = random.randrange(0, len(digits))
@@ -56,7 +80,13 @@ for i in range(1, columns*rows +1):
 plt.show()
 
 
-# In[5]:
+# In[60]:
+
+
+print_one_from_each(digits, 28)
+
+
+# In[6]:
 
 
 unique, counts = np.unique(labels, return_counts=True)
@@ -68,10 +98,8 @@ plt.xlabel("Numbers")
 plt.show()
 
 
-# In[6]:
+# In[7]:
 
-
-import cv2
 
 digitsResized = np.zeros((len(digits), 14*14))
 
@@ -84,7 +112,7 @@ for i, d in enumerate(digits):
 # print('Digits resized', np.shape(digitsResized))
 
 
-# In[ ]:
+# In[8]:
 
 
 # Visually sampling the data
@@ -107,7 +135,7 @@ plt.show()
 # 
 # Useless features are those with constant values across all data points, hence cannot be used to distinguish between data.
 
-# In[ ]:
+# In[9]:
 
 
 def filterConstantFeature(matrix, idx):
@@ -126,30 +154,40 @@ digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]     # DATA: d
 # print(np.shape(digitsResizedFiltered))
 
 
-# In[ ]:
+# In[22]:
 
 
 # given some restriction on later parts of the assignment, I've opted to train ALL
-# models with said restrictions; that being training on 5000 samples, and testing on
-# 37000 samples. let's see how that goes
+# models with said restrictions; those being 
+# - only training on 5000 samples
+# - testing on the remaining (37000) samples
+
+# let's see how that works out!
 
 
 # # Part 1. INK Feature Models
 # - Model 1. (Zero mean and SD=1) Multinomial Logit -> Ink Feature
 # - Model 2. (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
 
-# In[ ]:
+# In[19]:
+
+
+def print_feature(feat, feat_mean, feat_std):
+    print(f"{feat}\n{feat_mean}\n{feat_std}\n")
+    print(f"{np.size(feat)}, {np.size(feat_mean)}, {np.size(feat_std)}")
+
+
+# In[20]:
 
 
 # creating ink feature
 ink = np.array([sum(row) for row in digits])
 ink_mean = [np.mean(ink[labels == i]) for i in range(10)] # mean for each digit
 ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
-print(f"{ink}\n{ink_mean}\n{ink_std}\n")
-print(f"{np.size(ink)}, {np.size(ink_mean)}, {np.size(ink_std)}")
+print_feature(ink, ink_mean, ink_std)
 
 
-# In[ ]:
+# In[12]:
 
 
 # i didn't see much difference between scaled and non-scaled ink
@@ -157,7 +195,7 @@ scaled_ink = (ink - np.mean(ink)) / np.std(ink)
 print(scaled_ink)
 
 
-# In[ ]:
+# In[13]:
 
 
 # our new feature - whitespace between numbers
@@ -170,17 +208,16 @@ def get_whitespace_feature(digits):
     return ws
 
 
-# In[ ]:
+# In[21]:
 
 
 ws = get_whitespace_feature(digits)
 ws_mean = [np.mean(ink[labels == i]) for i in range(10)] # mean for each digit
 ws_std = [np.std(ink[labels == i]) for i in range(10)] # sd for each digit
-print(f"{ws}\n{ws_mean}\n{ws_std}\n")
-print(f"{np.size(ws)}, {np.size(ws_mean)}, {np.size(ws_std)}")
+print_feature(ws, ws_mean, ws_std)
 
 
-# In[ ]:
+# In[15]:
 
 
 # setting up pipeline to facilitate modelling
@@ -208,7 +245,7 @@ scaled_logit.score(X_test, y_test)
 y_pred = scaled_logit.predict(X_test)
 
 
-# In[ ]:
+# In[16]:
 
 
 from sklearn.metrics import classification_report
@@ -224,7 +261,7 @@ def show_results(model_desc, y_test, y_pred):
     plt.show()
 
 
-# In[ ]:
+# In[17]:
 
 
 show_results("MN LOGIT - INK FEATURE", y_test, y_pred)
@@ -238,7 +275,7 @@ show_results("MN LOGIT - INK FEATURE", y_test, y_pred)
 
 # ### MN Logit (w/ LASSO penalty)
 
-# In[ ]:
+# In[18]:
 
 
 # find a way to remove all pixels that always have constant value
