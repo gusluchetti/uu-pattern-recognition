@@ -19,12 +19,12 @@ import seaborn as sns
 import cv2
 
 
-# In[3]:
+# In[31]:
 
 
 # configuring figure/plot params
-custom_params = {'figure.figsize':(17,9)} 
-sns.set_theme(style="whitegrid", rc=custom_params)
+custom_params = {'figure.figsize':(16, 9)} 
+sns.set_theme(style="whitegrid", font_scale=1.3, rc=custom_params)
 
 
 # In[4]:
@@ -34,7 +34,7 @@ sns.set_theme(style="whitegrid", rc=custom_params)
 mnist_data = pd.read_csv('mnist.csv').values
 
 
-# In[39]:
+# In[5]:
 
 
 labels = mnist_data[:, 0]  # 0 to 9
@@ -45,25 +45,10 @@ mnist_df.head()
 # first column is label, all (784) other columns are pixel values (0-255)
 
 
-# In[49]:
-
-
-# randomly print one number from each class
-def print_one_from_each(digits, img_size):
-    fig = plt.figure(figsize=(26,13))
-    cols, rows = 5, 2
-    for i in range(1, (cols*rows)+1):
-        fig.add_subplot(rows, cols, i)
-        index = np.where(labels == i-1)[0][0]
-        plt.imshow(digits[index].reshape(img_size, img_size))
-        plt.xlabel(str(labels[index]))
-    plt.show()
-
-
 # # Data Exploration / Pre-Processing
 # Exploring data and plotting cool stuff
 
-# In[9]:
+# In[32]:
 
 
 unique, counts = np.unique(labels, return_counts=True)
@@ -74,8 +59,12 @@ plt.ylabel("Counts")
 plt.xlabel("Numbers")
 plt.show()
 
+fig = ax.get_figure()
+fig.savefig("class_dist.png", dpi=300) 
+# TODO: maybe plot mean and std in this plot?
 
-# In[10]:
+
+# In[8]:
 
 
 digitsResized = np.zeros((len(digits), 14*14))
@@ -89,24 +78,40 @@ for i, d in enumerate(digits):
 # print('Digits resized', np.shape(digitsResized))
 
 
-# In[50]:
+# In[27]:
 
 
-print_one_from_each(digits, 28)
+# randomly print one number from each class
+def print_one_from_each(filename, digits, img_size):
+    fig = plt.figure(figsize=(16,8))
+    cols, rows = 5, 2
+    for i in range(1, (cols*rows)+1):
+        fig.add_subplot(rows, cols, i)
+        index = np.where(labels == i-1)[0][0]
+        plt.imshow(digits[index].reshape(img_size, img_size))
+        plt.xlabel(str(labels[index]))
+    plt.show()
+    fig.savefig(f"{filename}.png", dpi=300)
 
 
-# In[52]:
+# In[28]:
+
+
+print_one_from_each("28_digits", digits, 28)
+
+
+# In[29]:
 
 
 # visually sampling the resized data
-print_one_from_each(digitsResized, 14)
+print_one_from_each("14_digits", digitsResized, 14)
 
 
 # #### Drop useless features
 # 
 # Useless features are those with constant values across all data points, hence cannot be used to distinguish between data.
 
-# In[12]:
+# In[11]:
 
 
 def filterConstantFeature(matrix, idx):
@@ -126,7 +131,7 @@ digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]
 # print(np.shape(digitsResizedFiltered))
 
 
-# In[60]:
+# In[12]:
 
 
 # given some restriction on later parts of the assignment,
@@ -138,7 +143,7 @@ digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]
 # - Model 1. (Zero mean and SD=1) Multinomial Logit -> Ink Feature
 # - Model 2. (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
 
-# In[62]:
+# In[13]:
 
 
 # preparing to build both features
@@ -147,23 +152,22 @@ def print_feature(feat, feat_mean, feat_std):
     print(f"{np.size(feat)}, {np.size(feat_mean)}, {np.size(feat_std)}")
 
 
-# In[54]:
+# In[14]:
 
 
 # creating ink feature
 ink = np.array([sum(row) for row in digits])
 
 
-# In[55]:
+# In[25]:
 
 
 ink_mean = [np.mean(ink[labels == i]) for i in range(10)] # mean for each digit
 ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
-scaled_ink = (ink - np.mean(ink)) / np.std(ink)
 print_feature(ink, ink_mean, ink_std)
 
 
-# In[66]:
+# In[16]:
 
 
 # our new feature - whitespace between numbers
@@ -176,7 +180,7 @@ def get_whitespace_feature(digits):
     return ws
 
 
-# In[65]:
+# In[17]:
 
 
 # TODO: finish this
@@ -186,25 +190,9 @@ ws_std = [np.std(ink[labels == i]) for i in range(10)] # sd for each digit
 print_feature(ws, ws_mean, ws_std)
 
 
-# In[20]:
-
-
-from sklearn.metrics import classification_report
-from sklearn.datasets import make_classification
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
-def show_results(model_desc, y_test, y_pred):
-    print(f"\nResults for {model_desc}\n")
-    print(classification_report(y_test, y_pred, zero_division=0)) # hiding zero division warn
-    cm = confusion_matrix(y_test, y_pred, labels=scaled_logit.classes_)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=scaled_logit.classes_)
-    disp.plot()
-    plt.show()
-
-
 # ## Model 1. MN Logit (only INK feature)
 
-# In[57]:
+# In[24]:
 
 
 # pipeline setup to facilitate modelling; consolidate training and testing datasets
@@ -219,9 +207,9 @@ from sklearn.preprocessing import StandardScaler
 l1f_features = ink.reshape(-1, 1) # reshaping since it's a single feature
 # I know the instructions mention we don´t need to do this now,
 # but I´d rather keep all models (reasonably) consistent
-l1f_train, l1f_test, y_l1F_train, y_l1f_test = train_test_split(l1f_features, labels, 
+l1f_train, l1f_test, y_l1f_train, y_l1f_test = train_test_split(l1f_features, labels, 
                                                     random_state=42, 
-                                                    test_size=0.3)
+                                                    test_size=0.2)
 
 # this pipeline logic is so we don´t leak data from the test set into the training set
 scaled_logit = make_pipeline(StandardScaler(), LogisticRegression())
@@ -230,10 +218,29 @@ scaled_logit.score(l1f_test, y_l1f_test)
 y_l1f_pred = scaled_logit.predict(l1f_test)
 
 
-# In[21]:
+# In[62]:
 
 
-show_results("MN LOGIT - INK FEATURE", y_l1f_test, y_l1f_pred)
+from sklearn.metrics import classification_report
+from sklearn.datasets import make_classification
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+def show_results(filename, y_test, y_pred):
+    print(f"\nResults for {filename}\n")
+    print(classification_report(y_test, y_pred, zero_division=0)) # hiding zero division warn
+    cm = confusion_matrix(y_test, y_pred, labels=scaled_logit.classes_)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=scaled_logit.classes_)
+    disp.plot()
+    plt.grid(visible=None)
+    plt.show()
+    # TODO: how to save this as pic?
+    disp.figure_.savefig(f"{filename}.png", dpi=300)
+
+
+# In[61]:
+
+
+show_results("mn_logit-ink_feature", y_l1f_test, y_l1f_pred)
 
 
 # ## Model 2. MN Logit (INK feature + Our Feature)
@@ -245,7 +252,7 @@ show_results("MN LOGIT - INK FEATURE", y_l1f_test, y_l1f_pred)
 l2f_features = ink.reshape(-1, 1)
 l2f_train, l2f_test, y_l2F_train, y_l2f_test = train_test_split(l2f_features, labels, 
                                                     random_state=42, 
-                                                    test_size=0.3)
+                                                    test_size=0.2)
 
 # this pipeline logic is so we don´t leak data from the test set into the training set
 # scaled_logit = make_pipeline(StandardScaler(), LogisticRegression())
@@ -279,7 +286,7 @@ p2_train, p2_test, y_p2_train, y_p2_test = train_test_split(p2_features, labels,
 
 # ### MN Logit (w/ LASSO penalty)
 
-# In[59]:
+# In[ ]:
 
 
 from sklearn.linear_model import LogisticRegression
