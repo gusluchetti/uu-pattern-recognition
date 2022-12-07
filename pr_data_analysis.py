@@ -27,24 +27,25 @@ custom_params = {'figure.figsize':(17,9)}
 sns.set_theme(style="whitegrid", rc=custom_params)
 
 
-# In[26]:
+# In[4]:
 
 
 # loading dataset (it's a bit slow)
 mnist_data = pd.read_csv('mnist.csv').values
 
 
-# In[31]:
+# In[39]:
 
 
 labels = mnist_data[:, 0]  # 0 to 9
 digits = mnist_data[:, 1:] # 42000 digits
+print(labels, digits)
 mnist_df = pd.DataFrame(mnist_data)
 mnist_df.head()
 # first column is label, all (784) other columns are pixel values (0-255)
 
 
-# In[59]:
+# In[49]:
 
 
 # randomly print one number from each class
@@ -53,9 +54,7 @@ def print_one_from_each(digits, img_size):
     cols, rows = 5, 2
     for i in range(1, (cols*rows)+1):
         fig.add_subplot(rows, cols, i)
-        number = f"{i-1}"
-        index = np.argmax(mnist_df[:,0] == number)
-        print(number, index)
+        index = np.where(labels == i-1)[0][0]
         plt.imshow(digits[index].reshape(img_size, img_size))
         plt.xlabel(str(labels[index]))
     plt.show()
@@ -64,29 +63,7 @@ def print_one_from_each(digits, img_size):
 # # Data Exploration / Pre-Processing
 # Exploring data and plotting cool stuff
 
-# In[46]:
-
-
-img_size = 28
-fig = plt.figure(figsize=(26,13))
-columns = 5
-rows = 2
-
-for i in range(1, columns*rows +1):
-    fig.add_subplot(rows, columns, i)
-    random_index = random.randrange(0, len(digits))
-    plt.imshow(digits[random_index].reshape(img_size, img_size))
-    plt.xlabel(str(labels[random_index]))
-plt.show()
-
-
-# In[60]:
-
-
-print_one_from_each(digits, 28)
-
-
-# In[6]:
+# In[9]:
 
 
 unique, counts = np.unique(labels, return_counts=True)
@@ -98,7 +75,7 @@ plt.xlabel("Numbers")
 plt.show()
 
 
-# In[7]:
+# In[10]:
 
 
 digitsResized = np.zeros((len(digits), 14*14))
@@ -112,30 +89,24 @@ for i, d in enumerate(digits):
 # print('Digits resized', np.shape(digitsResized))
 
 
-# In[8]:
+# In[50]:
 
 
-# Visually sampling the data
+print_one_from_each(digits, 28)
 
-img_size = 14
-columns = 5
-rows = 2
-fig = plt.figure(figsize=(26,13))
 
-for i in range(1, columns*rows +1):
-    fig.add_subplot(rows, columns, i)
-    random_index = random.randrange(0, len(digitsResized))
-    plt.imshow(digitsResized[random_index].reshape(img_size, img_size))
-    plt.xlabel(str(labels[random_index]))
+# In[52]:
 
-plt.show()
+
+# visually sampling the resized data
+print_one_from_each(digitsResized, 14)
 
 
 # #### Drop useless features
 # 
 # Useless features are those with constant values across all data points, hence cannot be used to distinguish between data.
 
-# In[9]:
+# In[12]:
 
 
 def filterConstantFeature(matrix, idx):
@@ -148,20 +119,19 @@ digitsFiltered = digits[:, usefulCols_digits]
 
 cols_digitsResized = list(range(0, len(digitsResized[0])))
 usefulCols_digitsResized = [filterConstantFeature(digitsResized, i) for i in cols_digitsResized]
-digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]     # DATA: digits -> resized to 14x14 -> dropped constant features.
+digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]     
+# DATA: digits -> resized to 14x14 -> dropped constant features.
 
 # print(np.shape(digitsResized))
 # print(np.shape(digitsResizedFiltered))
 
 
-# In[22]:
+# In[53]:
 
 
-# given some restriction on later parts of the assignment, I've opted to train ALL
-# models with said restrictions; those being 
-# - only training on 5000 samples
-# - testing on the remaining (37000) samples
-
+# given some restriction on later parts of the assignment,
+# should we train ALL models with said restrictions for consistency's sake?
+# those being only training on 5000 samples and testing on the remaining (37000) samples
 # let's see how that works out!
 
 
@@ -169,7 +139,7 @@ digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]     # DATA: d
 # - Model 1. (Zero mean and SD=1) Multinomial Logit -> Ink Feature
 # - Model 2. (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
 
-# In[19]:
+# In[14]:
 
 
 def print_feature(feat, feat_mean, feat_std):
@@ -177,25 +147,23 @@ def print_feature(feat, feat_mean, feat_std):
     print(f"{np.size(feat)}, {np.size(feat_mean)}, {np.size(feat_std)}")
 
 
-# In[20]:
+# In[54]:
 
 
 # creating ink feature
 ink = np.array([sum(row) for row in digits])
+
+
+# In[55]:
+
+
 ink_mean = [np.mean(ink[labels == i]) for i in range(10)] # mean for each digit
 ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
+scaled_ink = (ink - np.mean(ink)) / np.std(ink)
 print_feature(ink, ink_mean, ink_std)
 
 
-# In[12]:
-
-
-# i didn't see much difference between scaled and non-scaled ink
-scaled_ink = (ink - np.mean(ink)) / np.std(ink)
-print(scaled_ink)
-
-
-# In[13]:
+# In[17]:
 
 
 # our new feature - whitespace between numbers
@@ -208,7 +176,7 @@ def get_whitespace_feature(digits):
     return ws
 
 
-# In[21]:
+# In[18]:
 
 
 ws = get_whitespace_feature(digits)
@@ -217,11 +185,10 @@ ws_std = [np.std(ink[labels == i]) for i in range(10)] # sd for each digit
 print_feature(ws, ws_mean, ws_std)
 
 
-# In[15]:
+# In[57]:
 
 
-# setting up pipeline to facilitate modelling
-# and consolidate training and testing datasets
+# pipeline setup to facilitate modelling; consolidate training and testing datasets
 # https://scikit-learn.org/stable/modules/preprocessing.html#preprocessing-scaler
 
 from sklearn.datasets import make_classification
@@ -236,7 +203,7 @@ y = labels
 # but I´d rather keep all models (reasonably) consistent
 X_train, X_test, y_train, y_test = train_test_split(X, y, 
                                                     random_state=42, 
-                                                    test_size=0.30)
+                                                    test_size=37000)
 
 # this pipeline logic is so we don´t leak data from the test set into the training set
 scaled_logit = make_pipeline(StandardScaler(), LogisticRegression())
@@ -245,7 +212,7 @@ scaled_logit.score(X_test, y_test)
 y_pred = scaled_logit.predict(X_test)
 
 
-# In[16]:
+# In[20]:
 
 
 from sklearn.metrics import classification_report
@@ -261,21 +228,21 @@ def show_results(model_desc, y_test, y_pred):
     plt.show()
 
 
-# In[17]:
+# In[21]:
 
 
 show_results("MN LOGIT - INK FEATURE", y_test, y_pred)
 
 
 # # Part 2. All Pixel Values Models
-# _**NOTE: Both with 784(14*14 pixels) features (all pixel values)**_
+# _**NOTE: Both with 196 (14*14 pixels) features (all resized pixel values)**_
 # 
 # - Model 3. (Regularized?) MN Logit (w/ LASSO penalty) 
 # - Model 4. Support Vector Machines (SVM)
 
 # ### MN Logit (w/ LASSO penalty)
 
-# In[18]:
+# In[22]:
 
 
 # find a way to remove all pixels that always have constant value
@@ -287,7 +254,7 @@ logreg = sklearn.linear_model.LogisticRegression(penalty='l1', c=1,solver='saga'
 #print(df.loc[:, (df.sum() > 0).all()])
 
 
-# ### SVM + Grid Search -> All Pixel Values
+# ### SVM + Grid Search
 
 # In[ ]:
 
