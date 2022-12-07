@@ -8,7 +8,7 @@ import sys
 get_ipython().system('{sys.executable} -m pip install opencv-python')
 
 
-# In[2]:
+# In[3]:
 
 
 import random
@@ -39,7 +39,8 @@ mnist_data = pd.read_csv('mnist.csv').values
 
 labels = mnist_data[:, 0]  # 0 to 9
 digits = mnist_data[:, 1:] # 42000 digits
-print(labels, digits)
+print(labels, len(labels))
+print(digits, len(digits[0]))
 mnist_df = pd.DataFrame(mnist_data)
 mnist_df.head()
 # first column is label, all (784) other columns are pixel values (0-255)
@@ -152,11 +153,12 @@ def print_feature(feat, feat_mean, feat_std):
     print(f"{np.size(feat)}, {np.size(feat_mean)}, {np.size(feat_std)}")
 
 
-# In[14]:
+# In[64]:
 
 
 # creating ink feature
 ink = np.array([sum(row) for row in digits])
+print(f"Ink Feature:\n {ink}")
 
 
 # In[25]:
@@ -167,27 +169,45 @@ ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
 print_feature(ink, ink_mean, ink_std)
 
 
-# In[16]:
+# In[10]:
 
 
-# our new feature - whitespace between numbers
-# not just the opposite of ink, but the whitespace "inside" a digit
+# our new feature - number of lines (horizontal and vertically)
+# how many one-line pixels are enveloped by zero pixels
 # rows and columns; 0 has a LOT of whitespace, 1 doesn´t have that much
-def get_whitespace_feature(digits):
-    ws = np.zeros(len(digits))
+def build_line_feature(digits, max_count=6, img_size=28):
+    """
+    building line counter feature
+    digits: array for all digits and all pixel values
+    max_count: max number of lines being counted
+    img_size: size of the image (default is 28x28)
+    """ 
+    num_samples = len(digits)
+    df_lines = pd.DataFrame()
+    # generating empty dataset
+    for i in range(max_count):
+        directions = ['h', 'v']
+        for direction in directions:
+            new_col = f"{i}{direction}_line_ratio"
+            df_lines[new_col]=0
+    # print(df_lines)
     
-    print(ws)
-    return ws
+    diagonal_arr = np.arange(start=0, stop=num_samples+1, step=img_size+1)
+    for row in digits: # 784 length rows
+        for index in diagonal_arr: # top_left-bot_right diagonal
+            print(index)
+    
+    
+    return df_lines
 
 
-# In[17]:
+# In[11]:
 
 
-# TODO: finish this
-ws = get_whitespace_feature(digits)
-ws_mean = [np.mean(ink[labels == i]) for i in range(10)] # mean for each digit
-ws_std = [np.std(ink[labels == i]) for i in range(10)] # sd for each digit
-print_feature(ws, ws_mean, ws_std)
+lines = build_line_feature(digits)
+# lines_mean = [np.mean(lines[labels == i]) for i in range(10)] # mean for each digit
+# lines_std = [np.std(lines[labels == i]) for i in range(10)] # sd for each digit
+# print_feature(lines, lines_mean, lines_std)
 
 
 # ## Model 1. MN Logit (only INK feature)
@@ -237,7 +257,7 @@ def show_results(filename, y_test, y_pred):
     disp.figure_.savefig(f"{filename}.png", dpi=300)
 
 
-# In[61]:
+# In[63]:
 
 
 show_results("mn_logit-ink_feature", y_l1f_test, y_l1f_pred)
