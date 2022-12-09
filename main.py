@@ -66,9 +66,10 @@ fig.savefig("class_dist.png", dpi=300)
 # TODO: maybe plot mean and std in this plot?
 
 
-# In[9]:
+# In[128]:
 
 
+# resizing digits for future use on complex models
 digitsResized = np.zeros((len(digits), 14*14))
 
 for i, d in enumerate(digits):
@@ -76,8 +77,6 @@ for i, d in enumerate(digits):
     resized_d = cv2.resize(_d, (14, 14))
     d_ = np.reshape(resized_d, (1, 14*14))
     digitsResized[i] = d_
-
-# print('Digits resized', np.shape(digitsResized))
 
 
 # In[10]:
@@ -118,7 +117,6 @@ print_one_from_each("14_digits", digitsResized, 14)
 
 def filterConstantFeature(matrix, idx):
     return False if np.var(matrix[:, idx]) == 0.0 else True
-
 
 cols_digits = list(range(0, len(digits[0])))
 usefulCols_digits = [filterConstantFeature(digits, i) for i in cols_digits]
@@ -341,20 +339,19 @@ show_results("MN LOGIT - BOTH FEATURES", y_l2f_test, y_l2f_pred)
 # - Model 3. (Regularized?) MN Logit (w/ LASSO penalty) 
 # - Model 4. Support Vector Machines (SVM)
 
-# In[ ]:
+# In[129]:
 
 
 # separating training and test samples
-# specific requirements here (5k train and 37k test split - total 42k)
-# p2_features = resized all digits
+p2_features = digitsResized
 p2_train, p2_test, y_p2_train, y_p2_test = train_test_split(p2_features, labels, 
                                                     random_state=42, 
-                                                    test_size=37000)
+                                                    test_size=0.6)
 
 
 # ### MN Logit (w/ LASSO penalty)
 
-# In[ ]:
+# In[130]:
 
 
 from sklearn.linear_model import LogisticRegression
@@ -366,12 +363,21 @@ from sklearn.linear_model import LogisticRegression
 
 p2_logit = make_pipeline(
     StandardScaler(), 
-    LogisticRegression(penalty='l1', C=0.5, solver='saga')
+    LogisticRegression(C=0.5, max_iter=1000, penalty='l1', solver='saga')
 )
 
+start_p2m1 = perf_counter()
 p2_logit.fit(p2_train, y_p2_train)
 p2_logit.score(p2_test, y_p2_test)
+end_p2m1 = perf_counter()
+print(f"Took {end_p2m1-start_p2m1:.2f} seconds to train LOGIT model (all pixel values)")
 p2_logit_pred = p2_logit.predict(p2_test)
+
+
+# In[131]:
+
+
+show_results("MN LOGIT - ALL PIXEL VALUES (14x14)", y_p2_test, p2_logit_pred)
 
 
 # ### SVM + Grid Search
