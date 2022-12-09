@@ -20,7 +20,7 @@ import cv2
 from time import perf_counter
 
 
-# In[5]:
+# In[135]:
 
 
 # configuring figure/plot params
@@ -297,7 +297,7 @@ print(f"Took {end_t1-start_t1:.2f} seconds to train 1st LOGIT model (ink feature
 y_l1f_pred = scaled_logit.predict(l1f_test)
 
 
-# In[122]:
+# In[136]:
 
 
 show_results("mn_logit-ink_feature", y_l1f_test, y_l1f_pred)
@@ -327,7 +327,7 @@ print(f"Took {end_t2-start_t2:.2f} seconds to train 2nd LOGIT model (both featur
 y_l2f_pred = scaled_logit.predict(l2f_test)
 
 
-# In[124]:
+# In[137]:
 
 
 show_results("MN LOGIT - BOTH FEATURES", y_l2f_test, y_l2f_pred)
@@ -342,7 +342,7 @@ show_results("MN LOGIT - BOTH FEATURES", y_l2f_test, y_l2f_pred)
 # In[129]:
 
 
-# separating training and test samples
+# separating training and test samples for both part 2 models
 p2_features = digitsResized
 p2_train, p2_test, y_p2_train, y_p2_test = train_test_split(p2_features, labels, 
                                                     random_state=42, 
@@ -374,7 +374,7 @@ print(f"Took {end_p2m1-start_p2m1:.2f} seconds to train LOGIT model (all pixel v
 p2_logit_pred = p2_logit.predict(p2_test)
 
 
-# In[131]:
+# In[138]:
 
 
 show_results("MN LOGIT - ALL PIXEL VALUES (14x14)", y_p2_test, p2_logit_pred)
@@ -382,7 +382,7 @@ show_results("MN LOGIT - ALL PIXEL VALUES (14x14)", y_p2_test, p2_logit_pred)
 
 # ### SVM + Grid Search
 
-# In[ ]:
+# In[132]:
 
 
 from sklearn.model_selection import GridSearchCV
@@ -405,5 +405,30 @@ paramGrid = {
 }
 
 grid = GridSearchCV(SVC(), paramGrid, refit=True, verbose=3)
-grid.fit(X_train2_std, y_train2)
+start_p2m2 = perf_counter()
+grid.fit(p2_train, y_p2_train)
+end_p2m2 = perf_counter()
+print(f"Took {end_p2m2-start_p2m2:.2f} seconds to GridSearchCV SVM model (all pixel values)")
+
+
+# In[133]:
+
+
+p2_svc = make_pipeline(
+    StandardScaler(), 
+    SVC(kernel='poly', C=2, degree=2)
+)
+
+start_p2m2 = perf_counter()
+p2_svc.fit(p2_train, y_p2_train)
+p2_svc.score(p2_test, y_p2_test)
+end_p2m2 = perf_counter()
+print(f"Took {end_p2m1-start_p2m1:.2f} seconds to train SVC model (all pixel values)")
+p2_svc_pred = p2_svc.predict(p2_test)
+
+
+# In[139]:
+
+
+show_results("SVC - ALL PIXEL VALUES (14x14)", y_p2_test, p2_svc_pred)
 
