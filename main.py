@@ -169,26 +169,22 @@ ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
 print_feature(ink, ink_mean, ink_std)
 
 
-# In[46]:
+# In[98]:
 
 
 def line_counter(array):
     counter = 0
-    mid_line = False
+    line_start = False
     for pixel in array:
-        if mid_line == True and pixel == 0:
-            mid_line = False
+        if line_start == False and pixel > 0 :
+            line_start = True
+        if line_start == True and pixel < 1:
+            line_start = False
             counter += 1
-            continue
-            
-        if pixel == 0:
-            continue
-        else:
-            mid_line = True
     return counter
 
 
-# In[54]:
+# In[100]:
 
 
 # our new feature - number of lines (horizontal and vertically)
@@ -204,14 +200,15 @@ def build_line_feature(digits, max_count=6, img_size=28):
     num_samples = len(digits)
     df_lines = pd.DataFrame(index=(range(len(digits))))
     # setting up empty dataframe
-    for i in range(max_count):
-        directions = ['h', 'v']
-        for direction in directions:
-            new_col = f"{i}{direction}_line_ratio"
-            df_lines[new_col]=0
+    directions = ['h', 'v']
+    for direction in directions:
+        for i in range(max_count):
+            new_col = f"{direction}_{i}_line"
+            df_lines[new_col] = 0
     
-    offset, x = 0, 0
+    
     for index, digit in enumerate(digits): # each digit has img_size*img_size (784) elements
+        offset, x = 0, 0
         for i in range(img_size): # img_size rows and columns on each digit
             row = digit[(0+offset):(img_size+offset)]
             col_indexes = np.arange(start=x, stop=(img_size*img_size), step=img_size)
@@ -219,24 +216,31 @@ def build_line_feature(digits, max_count=6, img_size=28):
             # print(f"\n{row}\n{column}")
             
             h_count, v_count = line_counter(row), line_counter(col)
-            df_lines.at[index, f"{h_count}h_line_ratio"] += 1
-            df_lines.at[index, f"{v_count}v_line_ratio"] += 1
+            df_lines.at[index, f"h_{h_count}_line"] += 1
+            df_lines.at[index, f"v_{v_count}_line"] += 1
             
             offset += img_size
             x += 1
+        # plt.imshow(digit.reshape(img_size, img_size))
+        # plt.show()
         # break
         
-    print(df_lines)
     return df_lines
 
 
-# In[55]:
+# In[101]:
 
 
-lines = build_line_feature(digits)
+df_lines = build_line_feature(digits)
 # lines_mean = [np.mean(lines[labels == i]) for i in range(10)] # mean for each digit
 # lines_std = [np.std(lines[labels == i]) for i in range(10)] # sd for each digit
 # print_feature(lines, lines_mean, lines_std)
+
+
+# In[103]:
+
+
+df_lines.describe()
 
 
 # ## Model 1. MN Logit (only INK feature)
