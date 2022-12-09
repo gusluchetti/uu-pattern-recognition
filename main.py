@@ -8,7 +8,7 @@ import sys
 get_ipython().system('{sys.executable} -m pip install opencv-python')
 
 
-# In[4]:
+# In[105]:
 
 
 import random
@@ -17,6 +17,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import cv2
+from time import perf_counter
 
 
 # In[5]:
@@ -228,24 +229,48 @@ def build_line_feature(digits, max_count=6, img_size=28):
     return df_lines
 
 
-# In[101]:
+# In[106]:
 
 
-df_lines = build_line_feature(digits)
+# don´t run this unless stricly necessary
+start = perf_counter()
+# df_lines = build_line_feature(digits)
+end = perf_counter()
+print(f"Took {end-start:.2f} seconds to build line counting feature.")
 # lines_mean = [np.mean(lines[labels == i]) for i in range(10)] # mean for each digit
 # lines_std = [np.std(lines[labels == i]) for i in range(10)] # sd for each digit
 # print_feature(lines, lines_mean, lines_std)
 
 
-# In[103]:
+# In[107]:
 
 
 df_lines.describe()
 
 
+# In[120]:
+
+
+# helper function to print results
+from sklearn.metrics import classification_report
+from sklearn.datasets import make_classification
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+def show_results(filename, y_test, y_pred):
+    print(f"\nResults for {filename}\n")
+    print(classification_report(y_test, y_pred, zero_division=0)) # hiding zero division warn
+    cm = confusion_matrix(y_test, y_pred, labels=scaled_logit.classes_)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=scaled_logit.classes_)
+    disp.plot()
+    plt.grid(visible=None)
+    plt.show()
+    # TODO: how to save this as pic?
+    disp.figure_.savefig(f"{filename}.png", dpi=300)
+
+
 # ## Model 1. MN Logit (only INK feature)
 
-# In[24]:
+# In[121]:
 
 
 # pipeline setup to facilitate modelling; consolidate training and testing datasets
@@ -266,31 +291,15 @@ l1f_train, l1f_test, y_l1f_train, y_l1f_test = train_test_split(l1f_features, la
 
 # this pipeline logic is so we don´t leak data from the test set into the training set
 scaled_logit = make_pipeline(StandardScaler(), LogisticRegression())
+start_t1 = perf_counter()
 scaled_logit.fit(l1f_train, y_l1f_train)  # apply scaling on training data
 scaled_logit.score(l1f_test, y_l1f_test)
+end_t1 = perf_counter()
+print(f"Took {end_t1-start_t1:.2f} seconds to train 1st LOGIT model (ink feature)")
 y_l1f_pred = scaled_logit.predict(l1f_test)
 
 
-# In[62]:
-
-
-from sklearn.metrics import classification_report
-from sklearn.datasets import make_classification
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
-def show_results(filename, y_test, y_pred):
-    print(f"\nResults for {filename}\n")
-    print(classification_report(y_test, y_pred, zero_division=0)) # hiding zero division warn
-    cm = confusion_matrix(y_test, y_pred, labels=scaled_logit.classes_)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=scaled_logit.classes_)
-    disp.plot()
-    plt.grid(visible=None)
-    plt.show()
-    # TODO: how to save this as pic?
-    disp.figure_.savefig(f"{filename}.png", dpi=300)
-
-
-# In[63]:
+# In[122]:
 
 
 show_results("mn_logit-ink_feature", y_l1f_test, y_l1f_pred)
@@ -298,23 +307,29 @@ show_results("mn_logit-ink_feature", y_l1f_test, y_l1f_pred)
 
 # ## Model 2. MN Logit (INK feature + Our Feature)
 
-# In[ ]:
+# In[123]:
 
 
-# TODO: complete this
-l2f_features = ink.reshape(-1, 1)
-l2f_train, l2f_test, y_l2F_train, y_l2f_test = train_test_split(l2f_features, labels, 
+df_lines["ink"] = ink
+l2f_features = df_lines
+l2f_train, l2f_test, y_l2f_train, y_l2f_test = train_test_split(l2f_features, labels, 
                                                     random_state=42, 
                                                     test_size=0.2)
 
 # this pipeline logic is so we don´t leak data from the test set into the training set
-# scaled_logit = make_pipeline(StandardScaler(), LogisticRegression())
+scaled_logit = make_pipeline(
+    StandardScaler(), 
+    LogisticRegression(C=0.5, max_iter=2000, penalty='l1', solver='saga')
+)
+start_t2 = perf_counter()
 scaled_logit.fit(l2f_train, y_l2f_train)  # apply scaling on training data
 scaled_logit.score(l2f_test, y_l2f_test)
+end_t2 = perf_counter()
+print(f"Took {end_t2-start_t2:.2f} seconds to train 2nd LOGIT model (both features)")
 y_l2f_pred = scaled_logit.predict(l2f_test)
 
 
-# In[ ]:
+# In[124]:
 
 
 show_results("MN LOGIT - BOTH FEATURES", y_l2f_test, y_l2f_pred)
