@@ -129,4 +129,4 @@ dmypy.json
 .pyre/
 
 # ignoring plot pics
-.png
+*.png

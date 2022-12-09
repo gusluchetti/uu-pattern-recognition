@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[3]:
 
 
 import sys
 get_ipython().system('{sys.executable} -m pip install opencv-python')
 
 
-# In[3]:
+# In[4]:
 
 
 import random
@@ -19,7 +19,7 @@ import seaborn as sns
 import cv2
 
 
-# In[31]:
+# In[5]:
 
 
 # configuring figure/plot params
@@ -27,14 +27,14 @@ custom_params = {'figure.figsize':(16, 9)}
 sns.set_theme(style="whitegrid", font_scale=1.3, rc=custom_params)
 
 
-# In[4]:
+# In[6]:
 
 
 # loading dataset (it's a bit slow)
 mnist_data = pd.read_csv('mnist.csv').values
 
 
-# In[5]:
+# In[7]:
 
 
 labels = mnist_data[:, 0]  # 0 to 9
@@ -49,7 +49,7 @@ mnist_df.head()
 # # Data Exploration / Pre-Processing
 # Exploring data and plotting cool stuff
 
-# In[32]:
+# In[8]:
 
 
 unique, counts = np.unique(labels, return_counts=True)
@@ -65,7 +65,7 @@ fig.savefig("class_dist.png", dpi=300)
 # TODO: maybe plot mean and std in this plot?
 
 
-# In[8]:
+# In[9]:
 
 
 digitsResized = np.zeros((len(digits), 14*14))
@@ -79,7 +79,7 @@ for i, d in enumerate(digits):
 # print('Digits resized', np.shape(digitsResized))
 
 
-# In[27]:
+# In[10]:
 
 
 # randomly print one number from each class
@@ -95,13 +95,13 @@ def print_one_from_each(filename, digits, img_size):
     fig.savefig(f"{filename}.png", dpi=300)
 
 
-# In[28]:
+# In[11]:
 
 
 print_one_from_each("28_digits", digits, 28)
 
 
-# In[29]:
+# In[12]:
 
 
 # visually sampling the resized data
@@ -112,7 +112,7 @@ print_one_from_each("14_digits", digitsResized, 14)
 # 
 # Useless features are those with constant values across all data points, hence cannot be used to distinguish between data.
 
-# In[11]:
+# In[13]:
 
 
 def filterConstantFeature(matrix, idx):
@@ -132,7 +132,7 @@ digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]
 # print(np.shape(digitsResizedFiltered))
 
 
-# In[12]:
+# In[14]:
 
 
 # given some restriction on later parts of the assignment,
@@ -144,7 +144,7 @@ digitsResizedFiltered = digitsResized[:, usefulCols_digitsResized]
 # - Model 1. (Zero mean and SD=1) Multinomial Logit -> Ink Feature
 # - Model 2. (Zero mean and SD=1) MN Logit -> Ink Feature + Our own special feature
 
-# In[13]:
+# In[15]:
 
 
 # preparing to build both features
@@ -153,7 +153,7 @@ def print_feature(feat, feat_mean, feat_std):
     print(f"{np.size(feat)}, {np.size(feat_mean)}, {np.size(feat_std)}")
 
 
-# In[64]:
+# In[16]:
 
 
 # creating ink feature
@@ -161,7 +161,7 @@ ink = np.array([sum(row) for row in digits])
 print(f"Ink Feature:\n {ink}")
 
 
-# In[25]:
+# In[17]:
 
 
 ink_mean = [np.mean(ink[labels == i]) for i in range(10)] # mean for each digit
@@ -169,7 +169,26 @@ ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
 print_feature(ink, ink_mean, ink_std)
 
 
-# In[10]:
+# In[46]:
+
+
+def line_counter(array):
+    counter = 0
+    mid_line = False
+    for pixel in array:
+        if mid_line == True and pixel == 0:
+            mid_line = False
+            counter += 1
+            continue
+            
+        if pixel == 0:
+            continue
+        else:
+            mid_line = True
+    return counter
+
+
+# In[54]:
 
 
 # our new feature - number of lines (horizontal and vertically)
@@ -183,25 +202,35 @@ def build_line_feature(digits, max_count=6, img_size=28):
     img_size: size of the image (default is 28x28)
     """ 
     num_samples = len(digits)
-    df_lines = pd.DataFrame()
-    # generating empty dataset
+    df_lines = pd.DataFrame(index=(range(len(digits))))
+    # setting up empty dataframe
     for i in range(max_count):
         directions = ['h', 'v']
         for direction in directions:
             new_col = f"{i}{direction}_line_ratio"
             df_lines[new_col]=0
-    # print(df_lines)
     
-    diagonal_arr = np.arange(start=0, stop=num_samples+1, step=img_size+1)
-    for row in digits: # 784 length rows
-        for index in diagonal_arr: # top_left-bot_right diagonal
-            print(index)
-    
-    
+    offset, x = 0, 0
+    for index, digit in enumerate(digits): # each digit has img_size*img_size (784) elements
+        for i in range(img_size): # img_size rows and columns on each digit
+            row = digit[(0+offset):(img_size+offset)]
+            col_indexes = np.arange(start=x, stop=(img_size*img_size), step=img_size)
+            col = np.array([digit[x] for x in col_indexes])
+            # print(f"\n{row}\n{column}")
+            
+            h_count, v_count = line_counter(row), line_counter(col)
+            df_lines.at[index, f"{h_count}h_line_ratio"] += 1
+            df_lines.at[index, f"{v_count}v_line_ratio"] += 1
+            
+            offset += img_size
+            x += 1
+        # break
+        
+    print(df_lines)
     return df_lines
 
 
-# In[11]:
+# In[55]:
 
 
 lines = build_line_feature(digits)
