@@ -20,7 +20,7 @@ import cv2
 from time import perf_counter
 
 
-# In[135]:
+# In[248]:
 
 
 # configuring figure/plot params
@@ -168,7 +168,7 @@ ink_std = [np.std(ink[labels == i]) for i in range(10)] # std for each digit
 print_feature(ink, ink_mean, ink_std)
 
 
-# In[98]:
+# In[145]:
 
 
 def line_counter(array):
@@ -183,7 +183,7 @@ def line_counter(array):
     return counter
 
 
-# In[100]:
+# In[146]:
 
 
 # our new feature - number of lines (horizontal and vertically)
@@ -227,26 +227,116 @@ def build_line_feature(digits, max_count=6, img_size=28):
     return df_lines
 
 
-# In[106]:
+# In[148]:
 
 
 # don´t run this unless stricly necessary
 start = perf_counter()
-# df_lines = build_line_feature(digits)
+#df_lines = build_line_feature(digits)
 end = perf_counter()
 print(f"Took {end-start:.2f} seconds to build line counting feature.")
-# lines_mean = [np.mean(lines[labels == i]) for i in range(10)] # mean for each digit
-# lines_std = [np.std(lines[labels == i]) for i in range(10)] # sd for each digit
-# print_feature(lines, lines_mean, lines_std)
 
 
-# In[107]:
+# In[149]:
 
 
 df_lines.describe()
 
 
-# In[120]:
+# In[200]:
+
+
+h_pass_sum = df_lines.iloc[:, :6].sum() 
+v_pass_sum = df_lines.iloc[:, 6:].sum()
+h_pass_sum = h_pass_sum.rename({"h_0_line": "0 lines", "h_1_line": "1 line", "h_2_line": "2 lines", "h_3_line": "3 lines", "h_4_line": "4 lines", "h_5_line": "5 lines"})
+v_pass_sum = v_pass_sum.rename({"v_0_line": "0 lines", "v_1_line": "1 line", "v_2_line": "2 lines", "v_3_line": "3 lines", "v_4_line": "4 lines", "v_5_line": "5 lines"})
+
+print(h_pass_sum)
+print(v_pass_sum)
+
+
+# In[202]:
+
+
+ax = h_pass_sum.plot(kind="bar")
+ax.bar_label(ax.containers[0])
+plt.title("Distribution of horizontal line detections across all samples")
+plt.xlabel("Number of rows with specified line count (0 to 5)")
+plt.ylabel("Total Sum")
+
+
+# In[203]:
+
+
+ax = v_pass_sum.plot(kind="bar")
+ax.bar_label(ax.containers[0])
+plt.title("Distribution of vertical line detections across all samples")
+plt.xlabel("Number of columns with specified line count (0 to 5)")
+plt.ylabel("Total Sum")
+
+
+# In[158]:
+
+
+df_lines.head()
+
+
+# In[238]:
+
+
+fig, axs = plt.subplots(4, 2, figsize=(16, 28))
+directions = ["horizontal", "vertical"]
+
+for number in range(4): # 0 lines, 1 line, 2 lines, 3 lines
+    for index, direction in enumerate(directions): # horizontal on top, vertical on bottom
+        col = f"{direction[0]}_{number}_line"
+        col_filter = df_lines[col]
+        line_mean = [np.mean(col_filter[labels == i]) for i in range(10)]
+        line_std = [np.std(col_filter[labels == i]) for i in range(10)]
+        
+        axs[number, index].set_ylim(-3, 23)
+        axs[number, index].scatter(
+            list(range(0, 10, 1)),
+            line_mean,
+            label='Line Mean',
+            marker='^',
+            color='#F00',
+            s=60
+        )
+        axs[number, index].errorbar(
+            list(range(0, 10, 1)),
+            line_mean,
+            yerr=line_std,
+            color='#05F',
+            linestyle='',
+            label='Line STD'
+        )
+        axs[number, index].set_title(f"{number} line(s), {direction}")
+        axs[number, index].set_xlabel("Digits")
+
+axs[0, 0].set_ylabel("Rows per sample with given line count")
+axs[1, 0].set_ylabel("Rows per sample with given line count")
+axs[2, 0].set_ylabel("Rows per sample with given line count")
+axs[2, 0].set_ylabel("Rows per sample with given line count")
+fig.suptitle("Mean and standard deviation of line counts per sample")
+plt.show()
+
+
+# In[157]:
+
+
+# scaling values manually
+df_lines_scaled = df_lines.copy()
+for col in df_lines.columns:
+    mean = df_lines[col].mean()
+    std = df_lines[col].std()
+    print(col, mean, std)
+    df_lines_scaled[col] = df_lines_scaled[col].apply(lambda x: (x-mean)/std)
+
+df_lines_scaled.head()
+
+
+# In[247]:
 
 
 # helper function to print results
@@ -260,6 +350,7 @@ def show_results(filename, y_test, y_pred):
     cm = confusion_matrix(y_test, y_pred, labels=scaled_logit.classes_)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=scaled_logit.classes_)
     disp.plot()
+    plt.title(filename)
     plt.grid(visible=None)
     plt.show()
     # TODO: how to save this as pic?
@@ -268,7 +359,7 @@ def show_results(filename, y_test, y_pred):
 
 # ## Model 1. MN Logit (only INK feature)
 
-# In[121]:
+# In[255]:
 
 
 # pipeline setup to facilitate modelling; consolidate training and testing datasets
@@ -280,10 +371,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-l1f_features = ink.reshape(-1, 1) # reshaping since it's a single feature
-# I know the instructions mention we don´t need to do this now,
-# but I´d rather keep all models (reasonably) consistent
-l1f_train, l1f_test, y_l1f_train, y_l1f_test = train_test_split(l1f_features, labels, 
+l1f_train, l1f_test, y_l1f_train, y_l1f_test = train_test_split(ink.reshape(-1,1), labels, 
                                                     random_state=42, 
                                                     test_size=0.2)
 
@@ -297,28 +385,25 @@ print(f"Took {end_t1-start_t1:.2f} seconds to train 1st LOGIT model (ink feature
 y_l1f_pred = scaled_logit.predict(l1f_test)
 
 
-# In[136]:
+# In[256]:
 
 
-show_results("mn_logit-ink_feature", y_l1f_test, y_l1f_pred)
+show_results("Multinomial Logit (Ink Feature) Confusion Matrix", y_l1f_test, y_l1f_pred)
 
 
 # ## Model 2. MN Logit (INK feature + Our Feature)
 
-# In[123]:
+# In[259]:
 
 
-df_lines["ink"] = ink
-l2f_features = df_lines
-l2f_train, l2f_test, y_l2f_train, y_l2f_test = train_test_split(l2f_features, labels, 
+df_line_ink = df_lines.copy()
+df_line_ink["ink"] = ink
+l2f_train, l2f_test, y_l2f_train, y_l2f_test = train_test_split(df_line_ink, labels, 
                                                     random_state=42, 
                                                     test_size=0.2)
 
 # this pipeline logic is so we don´t leak data from the test set into the training set
-scaled_logit = make_pipeline(
-    StandardScaler(), 
-    LogisticRegression(C=0.5, max_iter=2000, penalty='l1', solver='saga')
-)
+scaled_logit = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
 start_t2 = perf_counter()
 scaled_logit.fit(l2f_train, y_l2f_train)  # apply scaling on training data
 scaled_logit.score(l2f_test, y_l2f_test)
@@ -327,10 +412,34 @@ print(f"Took {end_t2-start_t2:.2f} seconds to train 2nd LOGIT model (both featur
 y_l2f_pred = scaled_logit.predict(l2f_test)
 
 
-# In[137]:
+# In[260]:
 
 
-show_results("MN LOGIT - BOTH FEATURES", y_l2f_test, y_l2f_pred)
+show_results("Multinomial Logit (Both Features) Confusion Matrix", y_l2f_test, y_l2f_pred)
+
+
+# In[264]:
+
+
+print(df_lines)
+l3f_train, l3f_test, y_l3f_train, y_l3f_test = train_test_split(df_lines, labels, 
+                                                    random_state=42, 
+                                                    test_size=0.2)
+
+# this pipeline logic is so we don´t leak data from the test set into the training set
+scaled_logit = make_pipeline(StandardScaler(), LogisticRegression())
+start_t3 = perf_counter()
+scaled_logit.fit(l3f_train, y_l3f_train)  # apply scaling on training data
+scaled_logit.score(l3f_test, y_l3f_test)
+end_t3 = perf_counter()
+print(f"Took {end_t3-start_t3:.2f} seconds to train 2nd LOGIT model (both features)")
+y_l3f_pred = scaled_logit.predict(l3f_test)
+
+
+# In[265]:
+
+
+show_results("Multinomial Logit (Vertical + Horizontal Pass Feature) Confusion Matrix", y_l3f_test, y_l3f_pred)
 
 
 # # Part 2. All Pixel Values Models
@@ -374,10 +483,10 @@ print(f"Took {end_p2m1-start_p2m1:.2f} seconds to train LOGIT model (all pixel v
 p2_logit_pred = p2_logit.predict(p2_test)
 
 
-# In[138]:
+# In[252]:
 
 
-show_results("MN LOGIT - ALL PIXEL VALUES (14x14)", y_p2_test, p2_logit_pred)
+show_results("Multinomial Logit (14x14 pixel values) Confusion Matrix", y_p2_test, p2_logit_pred)
 
 
 # ### SVM + Grid Search
@@ -423,12 +532,12 @@ start_p2m2 = perf_counter()
 p2_svc.fit(p2_train, y_p2_train)
 p2_svc.score(p2_test, y_p2_test)
 end_p2m2 = perf_counter()
-print(f"Took {end_p2m1-start_p2m1:.2f} seconds to train SVC model (all pixel values)")
+print(f"Took {end_p2m2-start_p2m2:.2f} seconds to train SVC model (all pixel values)")
 p2_svc_pred = p2_svc.predict(p2_test)
 
 
-# In[139]:
+# In[253]:
 
 
-show_results("SVC - ALL PIXEL VALUES (14x14)", y_p2_test, p2_svc_pred)
+show_results("SVM (14x14 pixel values) Confusion Matrix", y_p2_test, p2_svc_pred)
 
