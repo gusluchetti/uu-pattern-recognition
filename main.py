@@ -50,10 +50,16 @@ mnist_df.head()
 # # Data Exploration / Pre-Processing
 # Exploring data and plotting cool stuff
 
-# In[8]:
+# In[3]:
 
 
 unique, counts = np.unique(labels, return_counts=True)
+print(unique, counts)
+
+
+# In[8]:
+
+
 ax = sns.barplot(x=unique,y=counts)
 ax.bar_label(ax.containers[0])
 plt.title("Class distribution for edited MNIST dataset")
@@ -112,7 +118,7 @@ print_one_from_each("14_digits", digitsResized, 14)
 # 
 # Useless features are those with constant values across all data points, hence cannot be used to distinguish between data.
 
-# In[13]:
+# In[2]:
 
 
 def filterConstantFeature(matrix, idx):
@@ -448,14 +454,14 @@ show_results("Multinomial Logit (Vertical + Horizontal Pass Feature) Confusion M
 # - Model 3. (Regularized?) MN Logit (w/ LASSO penalty) 
 # - Model 4. Support Vector Machines (SVM)
 
-# In[129]:
+# In[1]:
 
 
 # separating training and test samples for both part 2 models
 p2_features = digitsResized
 p2_train, p2_test, y_p2_train, y_p2_test = train_test_split(p2_features, labels, 
                                                     random_state=42, 
-                                                    test_size=0.6)
+                                                    test_size=37000)
 
 
 # ### MN Logit (w/ LASSO penalty)
